@@ -1,0 +1,4 @@
+mybotenv/
+*.log
+*.err
+__pycache__/
