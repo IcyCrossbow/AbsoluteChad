@@ -68,7 +68,6 @@ async def on_voice_state_update(member, before, after):
             except Exception as e:
                 print(f"Could not send DM: {e}")
 
-
 #-------------------#
 #      COMMANDS     #
 #-------------------#
@@ -97,6 +96,8 @@ async def announcement(
     image_url: str = None,
     thumbnail_url: str = None
 ):
+    await interaction.response.defer(ephemeral=True)  # acknowledge right away
+    
     embed = discord.Embed(title=title, description=description, color=discord.Color.blue())
 
     # Parse optional fields
