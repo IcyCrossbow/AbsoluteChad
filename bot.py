@@ -120,7 +120,9 @@ async def announcement(
     title="The title of the guide",
     intro="A short introduction or summary",
     steps="Steps separated by | (e.g. Step 1 | Step 2 | Step 3)",
-    tips="Optional tips separated by | (e.g. Tip 1 | Tip 2)"
+    tips="Optional tips separated by | (e.g. Tip 1 | Tip 2)",
+    image_url="Optional image URL to display at the bottom",
+    thumbnail_url="Optional thumbnail URL to display in the corner"
 )
 async def guide(
     interaction: discord.Interaction,
@@ -128,7 +130,9 @@ async def guide(
     title: str,
     intro: str,
     steps: str,
-    tips: str = None
+    tips: str = None,
+    image_url: str = None,
+    thumbnail_url: str = None
 ):
     # Acknowledge immediately
     await interaction.response.defer(ephemeral=True)
@@ -150,11 +154,20 @@ async def guide(
         tip_text = "\n".join([f"• {t}" for t in tip_list])
         embed.add_field(name="💡 Tips", value=tip_text, inline=False)
 
+    # Optional visuals
+    if image_url:
+        embed.set_image(url=image_url)
+    if thumbnail_url:
+        embed.set_thumbnail(url=thumbnail_url)
+
     embed.set_footer(text=f"Guide created by {interaction.user.display_name}")
 
     # Send to chosen channel
     await channel.send(embed=embed)
     await interaction.followup.send(f"✅ Guide sent to {channel.mention}", ephemeral=True)
 
+#-------------------#
+#   DISCORD_TOKEN   #
+#-------------------#
 
 bot.run(os.getenv("DISCORD_TOKEN"))
