@@ -116,7 +116,8 @@ async def announcement(
     embed.set_footer(text=f"Sent by {interaction.user.display_name}")
 
     await channel.send(embed=embed)
-    await interaction.response.send_message(f"✅ Announcement sent to {channel.mention}", ephemeral=True)
+    await interaction.followup.send(f"✅ Announcement sent to {channel.mention}", ephemeral=True)
+
 
 #EDIT EMBED MESSAGE
 @bot.tree.command(name="edit_announcement", description="Edit an existing announcement embed")
