@@ -96,18 +96,17 @@ async def announcement(
     image_url: str = None,
     thumbnail_url: str = None
 ):
-    await interaction.response.defer(ephemeral=True)  # acknowledge right away
-    
+    # Acknowledge immediately
+    await interaction.response.defer(ephemeral=True)
+
     embed = discord.Embed(title=title, description=description, color=discord.Color.blue())
 
-    # Parse optional fields
     if fields:
         parts = [p.strip() for p in fields.split("|")]
         for i in range(0, len(parts), 2):
             if i+1 < len(parts):
                 embed.add_field(name=parts[i], value=parts[i+1], inline=False)
 
-    # Optional image and thumbnail
     if image_url:
         embed.set_image(url=image_url)
     if thumbnail_url:
@@ -115,18 +114,31 @@ async def announcement(
 
     embed.set_footer(text=f"Sent by {interaction.user.display_name}")
 
+    # Send the embed to the chosen channel
     await channel.send(embed=embed)
+
+    # Send the confirmation as a follow‑up (not response)
     await interaction.followup.send(f"✅ Announcement sent to {channel.mention}", ephemeral=True)
+
 
 
 #EDIT EMBED MESSAGE
 @bot.tree.command(name="edit_announcement", description="Edit an existing announcement embed")
-async def edit_announcement(interaction: discord.Interaction,
-                            channel: discord.TextChannel,
-                            message_id: str,
-                            new_title: str = None,
-                            new_description: str = None):
-    await interaction.response.defer(ephemeral=True)  # 👈 acknowledge immediately
+@app_commands.describe(
+    channel="The channel where the embed is located",
+    message_id="The ID of the message you want to edit",
+    new_title="New title for the embed (optional)",
+    new_description="New description for the embed (optional)"
+)
+async def edit_announcement(
+    interaction: discord.Interaction,
+    channel: discord.TextChannel,
+    message_id: str,
+    new_title: str = None,
+    new_description: str = None
+):
+    # Acknowledge right away
+    await interaction.response.defer(ephemeral=True)
 
     try:
         msg = await channel.fetch_message(int(message_id))
