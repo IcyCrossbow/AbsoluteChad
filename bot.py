@@ -62,11 +62,7 @@ async def on_voice_state_update(member, before, after):
 #      COMMANDS     #
 #-------------------#
 
-@bot.command()
-async def ping(ctx):
-    await ctx.send("Pong! 🏓")
-
-# SEND EMBED MESSAGE
+#CREATE ANNOUNCEMENT
 @bot.tree.command(name="announcement", description="Send an announcement embed")
 @app_commands.describe(
     channel="The channel to send the announcement to",
@@ -116,5 +112,49 @@ async def announcement(
         await interaction.followup.send(f"✅ Announcement sent to {channel.mention}", ephemeral=True)
     except Exception as e:
         await interaction.followup.send(f"⚠️ Failed to send announcement: {e}", ephemeral=True)
+
+#CREATE GUIDE
+@bot.tree.command(name="guide", description="Create a structured guide embed")
+@app_commands.describe(
+    channel="The channel to send the guide to",
+    title="The title of the guide",
+    intro="A short introduction or summary",
+    steps="Steps separated by | (e.g. Step 1 | Step 2 | Step 3)",
+    tips="Optional tips separated by | (e.g. Tip 1 | Tip 2)"
+)
+async def guide(
+    interaction: discord.Interaction,
+    channel: discord.TextChannel,
+    title: str,
+    intro: str,
+    steps: str,
+    tips: str = None
+):
+    # Acknowledge immediately
+    await interaction.response.defer(ephemeral=True)
+
+    embed = discord.Embed(
+        title=f"📘 {title}",
+        description=f"{intro}\n\n──────────────────────────────",
+        color=discord.Color.green()
+    )
+
+    # Parse steps into a numbered list
+    step_list = [s.strip() for s in steps.split("|") if s.strip()]
+    step_text = "\n".join([f"{i+1}. {s}" for i, s in enumerate(step_list)])
+    embed.add_field(name="📝 Steps", value=step_text, inline=False)
+
+    # Optional tips
+    if tips:
+        tip_list = [t.strip() for t in tips.split("|") if t.strip()]
+        tip_text = "\n".join([f"• {t}" for t in tip_list])
+        embed.add_field(name="💡 Tips", value=tip_text, inline=False)
+
+    embed.set_footer(text=f"Guide created by {interaction.user.display_name}")
+
+    # Send to chosen channel
+    await channel.send(embed=embed)
+    await interaction.followup.send(f"✅ Guide sent to {channel.mention}", ephemeral=True)
+
 
 bot.run(os.getenv("DISCORD_TOKEN"))
