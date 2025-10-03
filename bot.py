@@ -39,6 +39,11 @@ GUILD_ID = 672020413559078913
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
     try:
+        # Clear global commands
+        await bot.tree.sync()  # syncs the *current* tree globally
+        await bot.tree.clear_commands(guild=None)  # clear global definitions
+        await bot.tree.sync()  # push the cleared state globally
+        
         guild = discord.Object(id=GUILD_ID)
         # Sync commands only to this guild
         synced = await bot.tree.sync(guild=guild)
