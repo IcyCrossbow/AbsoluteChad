@@ -79,6 +79,8 @@ async def send_embed(ctx, channel: discord.TextChannel, *, message: str):
         description=message,
         color=discord.Color.blue()  # you can change the color
     )
+    # Add building blocks here
+    #embed.add_field(name="Extra Info", value="Some details here", inline=False)
     embed.set_footer(text=f"Sent by {ctx.author.display_name}")
 
     try:
