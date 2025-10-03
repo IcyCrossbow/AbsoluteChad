@@ -123,41 +123,31 @@ async def announcement(
 
 #EDIT EMBED MESSAGE
 @bot.tree.command(name="edit_announcement", description="Edit an existing announcement embed")
-@app_commands.describe(
-    channel="The channel where the embed is located",
-    message_id="The ID of the message you want to edit",
-    new_title="New title for the embed (optional)",
-    new_description="New description for the embed (optional)"
-)
-async def edit_announcement(
-    interaction: discord.Interaction,
-    channel: discord.TextChannel,
-    message_id: str,
-    new_title: str = None,
-    new_description: str = None
-):
+async def edit_announcement(interaction: discord.Interaction,
+                            channel: discord.TextChannel,
+                            message_id: str,
+                            new_title: str = None,
+                            new_description: str = None):
+    await interaction.response.defer(ephemeral=True)  # 👈 acknowledge immediately
+
     try:
-        # Fetch the target message
         msg = await channel.fetch_message(int(message_id))
 
         if not msg.embeds:
-            await interaction.response.send_message("⚠️ That message has no embed to edit.", ephemeral=True)
+            await interaction.followup.send("⚠️ That message has no embed to edit.", ephemeral=True)
             return
 
-        # Copy the existing embed
         embed = msg.embeds[0].copy()
-
-        # Update fields if provided
         if new_title:
             embed.title = new_title
         if new_description:
             embed.description = new_description
 
-        # Apply the edit
         await msg.edit(embed=embed)
-        await interaction.response.send_message(f"✅ Embed updated in {channel.mention}", ephemeral=True)
+        await interaction.followup.send(f"✅ Embed updated in {channel.mention}", ephemeral=True)
 
     except Exception as e:
-        await interaction.response.send_message(f"⚠️ Could not edit message: {e}", ephemeral=True)
+        await interaction.followup.send(f"⚠️ Could not edit message: {e}", ephemeral=True)
+
 
 bot.run(os.getenv("DISCORD_TOKEN"))
