@@ -1,3 +1,7 @@
+#-------------------#
+#      IMPORTS      #
+#-------------------#
+
 import discord
 from discord.ext import commands
 import os, sys, time, threading
@@ -26,6 +30,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 #       EVENTS      #
 #-------------------#
 
+#LOGGED IN AS AT STARTUP
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
@@ -34,6 +39,7 @@ async def on_ready():
 #   VOICE EVENTS    #
 #-------------------#
 
+#SEND DM WHEN JOINED VC1 / VC2
 @bot.event
 async def on_voice_state_update(member, before, after):
     # Only care about joins (after.channel is not None, before.channel is None or different)
@@ -55,8 +61,31 @@ async def on_voice_state_update(member, before, after):
 #      COMMANDS     #
 #-------------------#
 
+#PING-PONG
 @bot.command()
 async def ping(ctx):
     await ctx.send("Pong! 🏓")
+
+#SEND EMBED MESSAGE
+@bot.command(name="sendembed")
+@commands.has_any_role(123456789012345678, 987654321098765432)  # 👈 put your role IDs here
+async def send_embed(ctx, channel: discord.TextChannel, *, message: str):
+    """
+    Send an embed as the bot to a specific channel.
+    Usage: !sendembed #channel Your message here
+    """
+    embed = discord.Embed(
+        title="📢 Announcement",
+        description=message,
+        color=discord.Color.blue()  # you can change the color
+    )
+    embed.set_footer(text=f"Sent by {ctx.author.display_name}")
+
+    try:
+        await channel.send(embed=embed)
+        await ctx.send(f"✅ Embed sent to {channel.mention}")
+    except Exception as e:
+        await ctx.send(f"⚠️ Could not send embed: {e}")
+
 
 bot.run(os.getenv("DISCORD_TOKEN"))
