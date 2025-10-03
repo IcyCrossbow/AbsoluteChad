@@ -58,19 +58,15 @@ async def on_ready():
 #SEND DM WHEN JOINED VC1 / VC2
 @bot.event
 async def on_voice_state_update(member, before, after):
-    # Only care about joins (after.channel is not None, before.channel is None or different)
-    if after.channel and after.channel.name in ["General Voice 1", "General Voice 2"]:
-        # Replace with your Discord user ID
-        owner_id = 144907705134481409  
-
-        # Fetch the user object for you
-        owner = await bot.fetch_user(owner_id)
-
-        # Send a DM
-        try:
-            await owner.send(f"🔔 {member.display_name} just joined {after.channel.name}")
-        except Exception as e:
-            print(f"Could not send DM: {e}")
+    # Only trigger when the member actually joins a channel (was None before, now in a channel)
+    if before.channel is None and after.channel is not None:
+        if after.channel.name in ["General Voice 1", "General Voice 2"]:
+            owner_id = 144907705134481409  # your Discord user ID
+            owner = await bot.fetch_user(owner_id)
+            try:
+                await owner.send(f"🔔 {member.display_name} just joined {after.channel.name}")
+            except Exception as e:
+                print(f"Could not send DM: {e}")
 
 
 #-------------------#
@@ -148,6 +144,5 @@ async def edit_announcement(interaction: discord.Interaction,
 
     except Exception as e:
         await interaction.followup.send(f"⚠️ Could not edit message: {e}", ephemeral=True)
-
 
 bot.run(os.getenv("DISCORD_TOKEN"))
