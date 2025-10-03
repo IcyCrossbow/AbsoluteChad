@@ -68,7 +68,7 @@ async def ping(ctx):
 
 #SEND EMBED MESSAGE
 @bot.command(name="sendembed")
-@commands.has_any_role(123456789012345678, 987654321098765432)  # 👈 put your role IDs here
+@commands.has_any_role(672021816008507402, 672022138063945729)  # 👈 put your role IDs here
 async def send_embed(ctx, channel: discord.TextChannel, *, message: str):
     """
     Send an embed as the bot to a specific channel.
