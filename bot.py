@@ -65,9 +65,8 @@ async def on_voice_state_update(member, before, after):
 #SYNC COMMANDS
 @bot.command()
 async def sync(ctx):
-    synced = await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
-    await ctx.send(f"Synced {len(synced)} commands.")
-
+    synced = await bot.tree.sync()
+    await ctx.send(f"Synced {len(synced)} global command(s).")
 
 #CREATE ANNOUNCEMENT
 @bot.tree.command(name="announcement", description="Send an announcement embed")
