@@ -32,14 +32,19 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 #-------------------#
 
 #LOGGED IN AS AT STARTUP
+GUILD_ID = 672020413559078913  # replace with your server ID
+
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
     try:
-        synced = await bot.tree.sync()
-        print(f"🔧 Synced {len(synced)} slash command(s)")
+        guild = discord.Object(id=GUILD_ID)
+        bot.tree.copy_global_to(guild=guild)
+        synced = await bot.tree.sync(guild=guild)
+        print(f"🔧 Synced {len(synced)} command(s) to guild {GUILD_ID}")
     except Exception as e:
         print(f"❌ Error syncing commands: {e}")
+
 
 #-------------------#
 #   VOICE EVENTS    #
