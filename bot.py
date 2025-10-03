@@ -3,6 +3,7 @@
 #-------------------#
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 import os, sys, time, threading
 import sdnotify  # install with: pip install sdnotify
@@ -34,6 +35,11 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
+    try:
+        synced = await bot.tree.sync()
+        print(f"🔧 Synced {len(synced)} slash command(s)")
+    except Exception as e:
+        print(f"❌ Error syncing commands: {e}")
 
 #-------------------#
 #   VOICE EVENTS    #
@@ -67,27 +73,43 @@ async def ping(ctx):
     await ctx.send("Pong! 🏓")
 
 #SEND EMBED MESSAGE
-@bot.command(name="sendembed")
-@commands.has_any_role(672021816008507402, 672022138063945729)  # 👈 put your role IDs here
-async def send_embed(ctx, channel: discord.TextChannel, *, message: str):
-    """
-    Send an embed as the bot to a specific channel.
-    Usage: !sendembed #channel Your message here
-    """
-    embed = discord.Embed(
-        title="📢 Announcement",
-        description=message,
-        color=discord.Color.blue()  # you can change the color
-    )
-    # Add building blocks here
-    #embed.add_field(name="Extra Info", value="Some details here", inline=False)
-    embed.set_footer(text=f"Sent by {ctx.author.display_name}")
+@bot.tree.command(name="announcement", description="Send an announcement embed")
+@app_commands.describe(
+    channel="The channel to send the announcement to",
+    title="The title of the announcement",
+    description="The main body text",
+    fields="Optional fields in the format: Name1 | Value1 | Name2 | Value2 ...",
+    image_url="Optional image URL to display in the embed",
+    thumbnail_url="Optional thumbnail URL to display in the embed"
+)
+async def announcement(
+    interaction: discord.Interaction,
+    channel: discord.TextChannel,
+    title: str,
+    description: str,
+    fields: str = None,
+    image_url: str = None,
+    thumbnail_url: str = None
+):
+    embed = discord.Embed(title=title, description=description, color=discord.Color.blue())
 
-    try:
-        await channel.send(embed=embed)
-        await ctx.send(f"✅ Embed sent to {channel.mention}")
-    except Exception as e:
-        await ctx.send(f"⚠️ Could not send embed: {e}")
+    # Parse optional fields
+    if fields:
+        parts = [p.strip() for p in fields.split("|")]
+        for i in range(0, len(parts), 2):
+            if i+1 < len(parts):
+                embed.add_field(name=parts[i], value=parts[i+1], inline=False)
+
+    # Optional image and thumbnail
+    if image_url:
+        embed.set_image(url=image_url)
+    if thumbnail_url:
+        embed.set_thumbnail(url=thumbnail_url)
+
+    embed.set_footer(text=f"Sent by {interaction.user.display_name}")
+
+    await channel.send(embed=embed)
+    await interaction.response.send_message(f"✅ Announcement sent to {channel.mention}", ephemeral=True)
 
 
 bot.run(os.getenv("DISCORD_TOKEN"))
