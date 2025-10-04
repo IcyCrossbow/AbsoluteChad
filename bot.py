@@ -37,8 +37,12 @@ BACKLOG_META_FILE = "backlog.json"
 tasks = []
 COMPLETED_FILE = "completed.json"
 completed_tasks = []
-BACKLOG_CHANNEL_ID = 1423326253456424970  # replace with your backlog channel ID
+BACKLOG_CHANNEL_ID = 1423326253456424970
 backlog_message_id = None
+
+#-------------------#
+#    PERSISTENCE    #
+#-------------------#
 
 def load_tasks():
     global tasks, completed_tasks
@@ -116,6 +120,9 @@ async def update_backlog_embed(bot):
 TRIGGERS_FILE = "triggers.json"
 triggers = {}  # { "keyword": "response" }
 
+# Only these roles can add/remove triggers
+ALLOWED_TRIGGER_ROLES = [672021816008507402, 672022138063945729]
+
 def load_triggers():
     global triggers
     if os.path.exists(TRIGGERS_FILE):
@@ -131,9 +138,13 @@ def save_triggers():
     with open(TRIGGERS_FILE, "w") as f:
         json.dump(triggers, f, indent=2)
 
+def has_trigger_permission(user: discord.Member) -> bool:
+    return any(role.id in ALLOWED_TRIGGER_ROLES for role in user.roles)
+
 #-------------------#
 #       EVENTS      #
 #-------------------#
+
 GUILD_ID = 672020413559078913  # replace with your server ID
 
 # ON_READY
@@ -390,17 +401,24 @@ async def todo_history(interaction: discord.Interaction):
 @bot.tree.command(name="add_trigger", description="Add a new keyword trigger")
 @app_commands.describe(keyword="The word/phrase to trigger on", response="The bot's reply")
 async def add_trigger(interaction: discord.Interaction, keyword: str, response: str):
+    if not has_trigger_permission(interaction.user):
+        await interaction.response.send_message("❌ You don’t have permission to add triggers.", ephemeral=True)
+        return
+
     triggers[keyword.lower()] = response
     save_triggers()
     await interaction.response.send_message(
-        f"✅ Trigger added: '{keyword}' → '{response}'",
-        ephemeral=True
+        f"✅ Trigger added: '{keyword}' → '{response}'", ephemeral=True
     )
 
 # REMOVE_TRIGGER
 @bot.tree.command(name="remove_trigger", description="Remove an existing trigger")
 @app_commands.describe(keyword="The word/phrase to remove")
 async def remove_trigger(interaction: discord.Interaction, keyword: str):
+    if not has_trigger_permission(interaction.user):
+        await interaction.response.send_message("❌ You don’t have permission to remove triggers.", ephemeral=True)
+        return
+
     key = keyword.lower()
     if key in triggers:
         del triggers[key]
