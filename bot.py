@@ -124,6 +124,7 @@ async def on_ready():
 #   VOICE EVENTS    #
 #-------------------#
 
+
 @bot.event
 async def on_voice_state_update(member, before, after):
     # Only notify on actual join (not streaming/mute changes)
