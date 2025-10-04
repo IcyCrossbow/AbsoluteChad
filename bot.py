@@ -34,11 +34,13 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 TASKS_FILE = "tasks.json"
 BACKLOG_META_FILE = "backlog.json"
 tasks = []
+COMPLETED_FILE = "completed.json"
+completed_tasks = []
 BACKLOG_CHANNEL_ID = 1423326253456424970  # replace with your backlog channel ID
 backlog_message_id = None
 
 def load_tasks():
-    global tasks
+    global tasks, completed_tasks
     if os.path.exists(TASKS_FILE):
         with open(TASKS_FILE, "r") as f:
             try:
@@ -48,9 +50,21 @@ def load_tasks():
     else:
         tasks = []
 
+    if os.path.exists(COMPLETED_FILE):
+        with open(COMPLETED_FILE, "r") as f:
+            try:
+                completed_tasks = json.load(f)
+            except json.JSONDecodeError:
+                completed_tasks = []
+    else:
+        completed_tasks = []
+
 def save_tasks():
     with open(TASKS_FILE, "w") as f:
         json.dump(tasks, f, indent=2)
+    with open(COMPLETED_FILE, "w") as f:
+        json.dump(completed_tasks, f, indent=2)
+
 
 def load_backlog_meta():
     global backlog_message_id
@@ -239,7 +253,6 @@ async def guide(
     await channel.send(embed=embed)
     await interaction.followup.send(f"✅ Guide sent to {channel.mention}", ephemeral=True)
 
-
 # TODO
 @bot.tree.command(name="todo", description="Manage the backlog")
 @app_commands.describe(action="add, list, or done", content="Task text or task number")
@@ -261,15 +274,72 @@ async def todo(interaction: discord.Interaction, action: str, content: str = Non
     elif action.lower() == "done" and content:
         try:
             index = int(content) - 1
-            removed = tasks.pop(index)
+            from datetime import datetime
+            finished = tasks.pop(index)
+            completed_tasks.append({
+                "task": finished,
+                "completed_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+            })
             save_tasks()
-            await interaction.followup.send(f"✔️ Completed task: {removed}", ephemeral=True)
+            await interaction.followup.send(f"✔️ Completed task: {finished}", ephemeral=True)
+
         except (ValueError, IndexError):
             await interaction.followup.send("⚠️ Invalid task number.", ephemeral=True)
     else:
         await interaction.followup.send("Usage: /todo add <task>, /todo list, /todo done <number>", ephemeral=True)
 
     await update_backlog_embed(bot)
+
+# TODO_HISTORY
+from discord.ui import View, Button
+
+ITEMS_PER_PAGE = 5  # how many completed tasks per page
+
+@bot.tree.command(name="todo_history", description="Show completed tasks with pagination")
+async def todo_history(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+
+    if not completed_tasks:
+        await interaction.followup.send("📭 No completed tasks yet.", ephemeral=True)
+        return
+
+    # Helper to build a page
+    def make_page(page: int):
+        start = page * ITEMS_PER_PAGE
+        end = start + ITEMS_PER_PAGE
+        entries = completed_tasks[start:end]
+        text = "\n".join(
+            [f"{i+1+start}. {entry['task']} (✔️ {entry['completed_at']})"
+             for i, entry in enumerate(entries)]
+        )
+        embed = discord.Embed(
+            title=f"📜 Completed tasks (Page {page+1}/{(len(completed_tasks)-1)//ITEMS_PER_PAGE+1})",
+            description=text,
+            color=discord.Color.purple()
+        )
+        return embed
+
+    # View with buttons
+    class HistoryView(View):
+        def __init__(self):
+            super().__init__(timeout=60)  # auto-disable after 60s
+            self.page = 0
+            self.max_page = (len(completed_tasks)-1)//ITEMS_PER_PAGE
+
+        @discord.ui.button(label="⬅️ Prev", style=discord.ButtonStyle.secondary)
+        async def prev(self, interaction_btn: discord.Interaction, button: Button):
+            if self.page > 0:
+                self.page -= 1
+                await interaction_btn.response.edit_message(embed=make_page(self.page), view=self)
+
+        @discord.ui.button(label="➡️ Next", style=discord.ButtonStyle.secondary)
+        async def next(self, interaction_btn: discord.Interaction, button: Button):
+            if self.page < self.max_page:
+                self.page += 1
+                await interaction_btn.response.edit_message(embed=make_page(self.page), view=self)
+
+    # Send first page
+    await interaction.followup.send(embed=make_page(0), view=HistoryView(), ephemeral=True)
 
 #-------------------#
 #   DISCORD_TOKEN   #
