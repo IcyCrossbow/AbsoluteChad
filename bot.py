@@ -6,6 +6,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import os, sys, time, threading
+import json
 import sdnotify  # install with: pip install sdnotify
 
 # Start systemd notifier
@@ -26,15 +27,92 @@ intents = discord.Intents.default()
 intents.message_content = True  # needed for reading messages
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# ------------------- #
+#   Persistence       #
+# ------------------- #
+
+def load_tasks():
+    global tasks
+    if os.path.exists(TASKS_FILE):
+        with open(TASKS_FILE, "r") as f:
+            try:
+                tasks = json.load(f)
+            except json.JSONDecodeError:
+                tasks = []
+    else:
+        tasks = []
+
+def save_tasks():
+    with open(TASKS_FILE, "w") as f:
+        json.dump(tasks, f, indent=2)
+
 #-------------------#
-#       EVENTS      #
+#   TASK BACKLOG    #
 #-------------------#
 
-GUILD_ID = 672020413559078913  # replace with your server ID
+TASKS_FILE = "tasks.json"
+tasks = []
+BACKLOG_CHANNEL_ID = 1423326253456424970  # replace with your backlog channel ID
+backlog_message_id = None
+
+def load_tasks():
+    global tasks
+    if os.path.exists(TASKS_FILE):
+        with open(TASKS_FILE, "r") as f:
+            try:
+                tasks = json.load(f)
+            except json.JSONDecodeError:
+                tasks = []
+    else:
+        tasks = []
+
+def save_tasks():
+    with open(TASKS_FILE, "w") as f:
+        json.dump(tasks, f, indent=2)
+
+async def update_backlog_embed(bot):
+    """Update or create the backlog embed in the backlog channel."""
+    channel = bot.get_channel(BACKLOG_CHANNEL_ID)
+    if not channel:
+        return
+
+    if tasks:
+        task_text = "\n".join([f"{i+1}. {t}" for i, t in enumerate(tasks)])
+    else:
+        task_text = "✅ No tasks in the backlog!"
+
+    embed = discord.Embed(
+        title="📋 Backlog",
+        description=task_text,
+        color=discord.Color.orange()
+    )
+
+    global backlog_message_id
+    try:
+        if backlog_message_id:
+            msg = await channel.fetch_message(backlog_message_id)
+            await msg.edit(embed=embed)
+        else:
+            msg = await channel.send(embed=embed)
+            backlog_message_id = msg.id
+    except Exception as e:
+        print(f"Error updating backlog: {e}")
+
+
+
+# ------------------- #
+#   Load on Startup   #
+# ------------------- #
+
+#SERVER ID
+GUILD_ID = 672020413559078913
 
 @bot.event
 async def on_ready():
+    load_tasks()
     print(f"✅ Logged in as {bot.user}")
+    # sync commands here as before
+    await update_backlog_embed(bot)
     try:
         guild = discord.Object(id=GUILD_ID)
         synced = await bot.tree.sync(guild=guild)  # guild-only sync
@@ -171,6 +249,69 @@ async def guide(
     # Send to chosen channel
     await channel.send(embed=embed)
     await interaction.followup.send(f"✅ Guide sent to {channel.mention}", ephemeral=True)
+
+#TODO
+@bot.tree.command(name="todo", description="Manage the backlog")
+@app_commands.describe(action="add, list, or done", content="Task text or task number")
+async def todo(interaction: discord.Interaction, action: str, content: str = None):
+    await interaction.response.defer(ephemeral=True)
+
+    if action.lower() == "add" and content:
+        tasks.append(content)
+        save_tasks()
+        await interaction.followup.send(f"➕ Added task: {content}", ephemeral=True)
+
+    elif action.lower() == "list":
+        if tasks:
+            task_text = "\n".join([f"{i+1}. {t}" for i, t in enumerate(tasks)])
+            await interaction.followup.send(f"📋 Current tasks:\n{task_text}", ephemeral=True)
+        else:
+            await interaction.followup.send("✅ No tasks in the backlog!", ephemeral=True)
+
+    elif action.lower() == "done" and content:
+        try:
+            index = int(content) - 1
+            removed = tasks.pop(index)
+            save_tasks()
+            await interaction.followup.send(f"✔️ Completed task: {removed}", ephemeral=True)
+        except (ValueError, IndexError):
+            await interaction.followup.send("⚠️ Invalid task number.", ephemeral=True)
+    else:
+        await interaction.followup.send("Usage: /todo add <task>, /todo list, /todo done <number>", ephemeral=True)
+
+    await update_backlog_embed(bot)
+
+# ------------------- #
+#   Backlog Embed     #
+# ------------------- #
+
+async def update_backlog_embed(bot):
+    """Update or create the backlog embed in the backlog channel."""
+    channel = bot.get_channel(BACKLOG_CHANNEL_ID)
+    if not channel:
+        return
+
+    if tasks:
+        task_text = "\n".join([f"{i+1}. {t}" for i, t in enumerate(tasks)])
+    else:
+        task_text = "✅ No tasks in the backlog!"
+
+    embed = discord.Embed(
+        title="📋 Backlog",
+        description=task_text,
+        color=discord.Color.orange()
+    )
+
+    global backlog_message_id
+    try:
+        if backlog_message_id:
+            msg = await channel.fetch_message(backlog_message_id)
+            await msg.edit(embed=embed)
+        else:
+            msg = await channel.send(embed=embed)
+            backlog_message_id = msg.id
+    except Exception as e:
+        print(f"Error updating backlog: {e}")
 
 #-------------------#
 #   DISCORD_TOKEN   #
