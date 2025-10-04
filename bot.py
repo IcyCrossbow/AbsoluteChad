@@ -239,6 +239,7 @@ async def guide(
     await channel.send(embed=embed)
     await interaction.followup.send(f"✅ Guide sent to {channel.mention}", ephemeral=True)
 
+
 # TODO
 @bot.tree.command(name="todo", description="Manage the backlog")
 @app_commands.describe(action="add, list, or done", content="Task text or task number")
