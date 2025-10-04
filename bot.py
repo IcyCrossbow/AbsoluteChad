@@ -115,6 +115,34 @@ async def update_backlog_embed(bot):
         print(f"Error updating backlog: {e}")
 
 # ------------------- #
+#   ECONOMY SYSTEM    #
+# ------------------- #
+ECONOMY_FILE = "economy.json"
+balances = {}  # {user_id: coins}
+
+def load_economy():
+    global balances
+    if os.path.exists(ECONOMY_FILE):
+        with open(ECONOMY_FILE, "r") as f:
+            try:
+                balances = json.load(f)
+            except json.JSONDecodeError:
+                balances = {}
+    else:
+        balances = {}
+
+def save_economy():
+    with open(ECONOMY_FILE, "w") as f:
+        json.dump(balances, f, indent=2)
+
+def add_coins(user_id: int, amount: int):
+    balances[str(user_id)] = balances.get(str(user_id), 0) + amount
+    save_economy()
+
+def get_balance(user_id: int) -> int:
+    return balances.get(str(user_id), 0)
+
+# ------------------- #
 #   TRIGGERS CONFIG   #
 # ------------------- #
 TRIGGERS_FILE = "triggers.json"
@@ -153,6 +181,7 @@ async def on_ready():
     load_tasks()
     load_backlog_meta()
     load_triggers()
+    load_economy()
     print(f"✅ Logged in as {bot.user}")
     try:
         guild = discord.Object(id=GUILD_ID)
@@ -182,10 +211,12 @@ async def on_message(message: discord.Message):
     if message.author == bot.user:
         return
 
-    content = message.content.lower()
+    # Economy: award 1 coin per message
+    add_coins(message.author.id, 1)
 
     # Fuzzy match: compare the entire message against each keyword
     # Using difflib (standard library) and a 70% threshold
+    content = message.content.lower()
     for keyword, response in triggers.items():
         ratio = difflib.SequenceMatcher(None, keyword, content).ratio() * 100
         if ratio >= 70:
@@ -435,6 +466,33 @@ async def list_triggers(interaction: discord.Interaction):
         await interaction.response.send_message(f"📋 Current triggers:\n{text}", ephemeral=True)
     else:
         await interaction.response.send_message("📭 No triggers set.", ephemeral=True)
+
+# ------------------- #
+#   ECONOMY COMMANDS  #
+# ------------------- #
+
+# BALANCE
+@bot.tree.command(name="balance", description="Check your coin balance")
+async def balance(interaction: discord.Interaction):
+    coins = get_balance(interaction.user.id)
+    await interaction.response.send_message(f"💰 You have {coins} coins.", ephemeral=True)
+
+# GAMBLE
+@bot.tree.command(name="gamble", description="Gamble some of your coins")
+@app_commands.describe(amount="How many coins to gamble")
+async def gamble(interaction: discord.Interaction, amount: int):
+    coins = get_balance(interaction.user.id)
+    if amount <= 0 or amount > coins:
+        await interaction.response.send_message("⚠️ Invalid amount.", ephemeral=True)
+        return
+
+    import random
+    if random.random() < 0.5:  # 50% chance
+        add_coins(interaction.user.id, -amount)
+        await interaction.response.send_message(f"❌ You lost {amount} coins!", ephemeral=True)
+    else:
+        add_coins(interaction.user.id, amount)
+        await interaction.response.send_message(f"🎉 You won {amount} coins!", ephemeral=True
 
 #-------------------#
 #   DISCORD_TOKEN   #
