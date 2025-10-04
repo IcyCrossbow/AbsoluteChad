@@ -2,6 +2,7 @@
 #      IMPORTS      #
 #-------------------#
 import discord
+import difflib
 from discord import app_commands
 from discord.ext import commands
 import os, sys, time, threading
@@ -109,15 +110,38 @@ async def update_backlog_embed(bot):
     except Exception as e:
         print(f"Error updating backlog: {e}")
 
+# ------------------- #
+#   TRIGGERS CONFIG   #
+# ------------------- #
+TRIGGERS_FILE = "triggers.json"
+triggers = {}  # { "keyword": "response" }
+
+def load_triggers():
+    global triggers
+    if os.path.exists(TRIGGERS_FILE):
+        with open(TRIGGERS_FILE, "r") as f:
+            try:
+                triggers = json.load(f)
+            except json.JSONDecodeError:
+                triggers = {}
+    else:
+        triggers = {}
+
+def save_triggers():
+    with open(TRIGGERS_FILE, "w") as f:
+        json.dump(triggers, f, indent=2)
+
 #-------------------#
 #       EVENTS      #
 #-------------------#
 GUILD_ID = 672020413559078913  # replace with your server ID
 
+# ON_READY
 @bot.event
 async def on_ready():
     load_tasks()
     load_backlog_meta()
+    load_triggers()
     print(f"✅ Logged in as {bot.user}")
     try:
         guild = discord.Object(id=GUILD_ID)
@@ -128,6 +152,7 @@ async def on_ready():
 
     await update_backlog_embed(bot)
 
+# ON_VOICE_STATE_UPDATE
 @bot.event
 async def on_voice_state_update(member, before, after):
     if before.channel is None and after.channel is not None:
@@ -138,6 +163,26 @@ async def on_voice_state_update(member, before, after):
                 await owner.send(f"🔔 {member.display_name} just joined {after.channel.name}")
             except Exception as e:
                 print(f"Could not send DM: {e}")
+
+# ON_MESSAGE
+@bot.event
+async def on_message(message: discord.Message):
+    # Avoid responding to the bot itself
+    if message.author == bot.user:
+        return
+
+    content = message.content.lower()
+
+    # Fuzzy match: compare the entire message against each keyword
+    # Using difflib (standard library) and a 70% threshold
+    for keyword, response in triggers.items():
+        ratio = difflib.SequenceMatcher(None, keyword, content).ratio() * 100
+        if ratio >= 70:
+            await message.channel.send(response)
+            break  # stop after the first match
+
+    # Keep text commands working (e.g., !sync)
+    await bot.process_commands(message)
 
 #-------------------#
 #      COMMANDS     #
@@ -340,6 +385,38 @@ async def todo_history(interaction: discord.Interaction):
 
     # Send first page
     await interaction.followup.send(embed=make_page(0), view=HistoryView(), ephemeral=True)
+
+# ADD_TRIGGER
+@bot.tree.command(name="add_trigger", description="Add a new keyword trigger")
+@app_commands.describe(keyword="The word/phrase to trigger on", response="The bot's reply")
+async def add_trigger(interaction: discord.Interaction, keyword: str, response: str):
+    triggers[keyword.lower()] = response
+    save_triggers()
+    await interaction.response.send_message(
+        f"✅ Trigger added: '{keyword}' → '{response}'",
+        ephemeral=True
+    )
+
+# REMOVE_TRIGGER
+@bot.tree.command(name="remove_trigger", description="Remove an existing trigger")
+@app_commands.describe(keyword="The word/phrase to remove")
+async def remove_trigger(interaction: discord.Interaction, keyword: str):
+    key = keyword.lower()
+    if key in triggers:
+        del triggers[key]
+        save_triggers()
+        await interaction.response.send_message(f"🗑️ Trigger '{keyword}' removed.", ephemeral=True)
+    else:
+        await interaction.response.send_message(f"⚠️ No trigger found for '{keyword}'.", ephemeral=True)
+
+# LIST_TRIGGERS
+@bot.tree.command(name="list_triggers", description="List all current triggers")
+async def list_triggers(interaction: discord.Interaction):
+    if triggers:
+        text = "\n".join([f"• {k} → {v}" for k, v in triggers.items()])
+        await interaction.response.send_message(f"📋 Current triggers:\n{text}", ephemeral=True)
+    else:
+        await interaction.response.send_message("📭 No triggers set.", ephemeral=True)
 
 #-------------------#
 #   DISCORD_TOKEN   #
