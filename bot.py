@@ -207,23 +207,26 @@ async def on_voice_state_update(member, before, after):
 # ON_MESSAGE
 @bot.event
 async def on_message(message: discord.Message):
-    # Avoid responding to the bot itself
     if message.author == bot.user:
         return
 
-    # Economy: award 1 coin per message
-    add_coins(message.author.id, 1)
+    # Economy: award coins with cooldown
+    now = time.time()
+    user_id = message.author.id
+    last_time = last_earned.get(user_id, 0)
 
-    # Fuzzy match: compare the entire message against each keyword
-    # Using difflib (standard library) and a 70% threshold
+    if now - last_time >= EARN_COOLDOWN:
+        add_coins(user_id, COINS_PER_MESSAGE)
+        last_earned[user_id] = now
+
+    # Trigger system (fuzzy matching)
     content = message.content.lower()
     for keyword, response in triggers.items():
         ratio = difflib.SequenceMatcher(None, keyword, content).ratio() * 100
         if ratio >= 70:
             await message.channel.send(response)
-            break  # stop after the first match
+            break
 
-    # Keep text commands working (e.g., !sync)
     await bot.process_commands(message)
 
 #-------------------#
@@ -470,6 +473,12 @@ async def list_triggers(interaction: discord.Interaction):
 # ------------------- #
 #   ECONOMY COMMANDS  #
 # ------------------- #
+import time
+
+# Track last time a user earned coins
+last_earned = {}  # {user_id: timestamp}
+EARN_COOLDOWN = 60  # seconds between coin rewards
+COINS_PER_MESSAGE = 1
 
 # BALANCE
 @bot.tree.command(name="balance", description="Check your coin balance")
