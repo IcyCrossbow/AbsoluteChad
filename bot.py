@@ -503,6 +503,33 @@ async def gamble(interaction: discord.Interaction, amount: int):
         add_coins(interaction.user.id, amount)
         await interaction.response.send_message(f"🎉 You won {amount} coins!", ephemeral=True)
 
+# RICHEST
+@bot.tree.command(name="richest", description="Show the top coin holders")
+async def richest(interaction: discord.Interaction):
+    # Sort balances by coin amount, descending
+    sorted_balances = sorted(
+        balances.items(), key=lambda x: x[1], reverse=True
+    )
+
+    if not sorted_balances:
+        await interaction.response.send_message("No one has any coins yet!", ephemeral=True)
+        return
+
+    # Build leaderboard string (top 10)
+    leaderboard = []
+    for i, (user_id, coins) in enumerate(sorted_balances[:10], start=1):
+        user = interaction.guild.get_member(int(user_id))
+        name = user.display_name if user else f"User {user_id}"
+        leaderboard.append(f"**{i}. {name}** — 💰 {coins} coins")
+
+    embed = discord.Embed(
+        title="🏆 Richest Users",
+        description="\n".join(leaderboard),
+        color=discord.Color.gold()
+    )
+
+    await interaction.response.send_message(embed=embed)
+
 #-------------------#
 #   DISCORD_TOKEN   #
 #-------------------#
