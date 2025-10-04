@@ -501,7 +501,7 @@ async def gamble(interaction: discord.Interaction, amount: int):
         await interaction.response.send_message(f"❌ You lost {amount} coins!", ephemeral=True)
     else:
         add_coins(interaction.user.id, amount)
-        await interaction.response.send_message(f"🎉 You won {amount} coins!", ephemeral=True
+        await interaction.response.send_message(f"🎉 You won {amount} coins!", ephemeral=True)
 
 #-------------------#
 #   DISCORD_TOKEN   #
